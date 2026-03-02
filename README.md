@@ -95,14 +95,14 @@ python -m streamlit run frontend/Main.py
 * Query chunks using RAG pipeline with the Qwen model.
 * Returns answers using only the context from the uploaded PDF.
 
-How It Works
+**How It Works**
 1. User uploads a PDF via the Streamlit UI.
 2. The PDF service converts it to text and splits it into chunks.
 3. Chunks are embedded using sentence-transformers.
 4. User asks a question, which is transformed into a vector and matched to the most relevant chunks.
 5. The LLM generates an answer based only on retrieved chunks.
 
-Notes
+**Notes**
 * Only one PDF is supported.
 * No database or Redis setup is required; all storage is handled in memory via embeddings.
 * Config is centralized in backend/config/config.py for easy adjustment.
