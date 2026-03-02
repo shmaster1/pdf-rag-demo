@@ -1,0 +1,18 @@
+# Python virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / Editor files
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Secrets / configs
+backend/config/config.py
