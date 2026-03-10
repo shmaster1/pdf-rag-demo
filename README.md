@@ -56,7 +56,7 @@ Note: No relational database or Redis is required for this demo. Storage is hand
 
 1️⃣ Clone Repository
 
-git clone https://github.com/shmaster1/my_app.git
+git clone https://github.com/shmaster1/pdf-rag-demo.git
 cd my_app
 
 2️⃣ Configure Environment Variables
