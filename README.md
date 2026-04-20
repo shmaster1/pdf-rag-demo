@@ -85,8 +85,12 @@ uvicorn main:app --reload --port 8001
 
 make sure the current dir in terminal is the root of the project --> 
 ```
-python -m streamlit run frontend/Main.py
+python -m streamlit run frontend/Main.py 
+
 ```
+5️⃣ Run Frontend (Next.js)
+
+ cd frontend-next && npm run dev 
 
 
 ## Features
