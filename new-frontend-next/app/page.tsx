@@ -6,7 +6,6 @@ import {
   Loader2,
   Bot,
   User,
-  Paperclip,
   Upload,
   AlertCircle,
 } from "lucide-react";
@@ -30,6 +29,8 @@ export default function Home() {
   const [isQuerying, setIsQuerying] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
   const [isDragging, setIsDragging] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -65,6 +66,7 @@ export default function Home() {
       } else {
         setUploadState({ status: "success", fileName: file.name });
         setMessages([]);
+        setShowToast(true);
       }
     } catch (err) {
       setUploadState({
@@ -143,35 +145,131 @@ export default function Home() {
 
   return (
     <div className="flex h-full" style={{ background: "var(--background)" }}>
+      {/* Toast */}
+      {showConfirm && (
+        <div
+          className="fixed top-4 left-1/2 z-50 flex items-center gap-4 px-5 py-4 rounded-2xl shadow-xl text-sm"
+          style={{
+            transform: "translateX(-50%)",
+            background: "#fff",
+            border: "1px solid var(--border)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+          }}
+        >
+          <div>
+            <p className="font-semibold" style={{ color: "var(--text-primary)" }}>Remove this document?</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>All chat history will be permanently gone.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: "var(--surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--border)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface-2)")}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { setShowConfirm(false); clearDocument(); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: "#ef4444", color: "#fff" }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#dc2626")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#ef4444")}
+            >
+              Yes, remove
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showToast && (
+        <div
+          className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium"
+          style={{
+            background: "#16a34a",
+            color: "#ffffff",
+            animation: "toast-pop 4.5s ease forwards",
+          }}
+          onAnimationEnd={() => setShowToast(false)}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="white" strokeWidth="1.4" />
+            <path d="M5 8l2.5 2.5L11 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {uploadState.fileName} uploaded successfully
+        </div>
+      )}
       {/* Main chat area */}
       <main className="flex flex-1 flex-col min-w-0">
         {/* Chat header */}
         <header
-          className="flex items-center justify-between px-6 py-4 border-b flex-shrink-0"
+          className="flex items-center justify-between px-6 py-5 border-b flex-shrink-0"
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
         >
-          <div>
-            <h1 className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
-              {uploadState.status === "success" ? uploadState.fileName : "No document loaded"}
-            </h1>
-            <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-              {uploadState.status === "success"
-                ? "Ask anything about this document"
-                : "Upload a PDF to start chatting"}
+          {/* Spacer (balances the right side) */}
+          <div className="w-48 flex-shrink-0" />
+
+          {/* Centered logo */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--accent)" }}
+              >
+                <svg width="24" height="24" viewBox="0 0 20 20" fill="none">
+                  <path d="M4 3h8l4 4v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" fill="white" fillOpacity="0.25" />
+                  <path d="M12 3v4h4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M7 10h6M7 13h4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight" style={{ color: "var(--text-primary)" }}>
+                sha<span style={{ color: "var(--accent)" }}>pdf</span>
+              </h1>
+            </div>
+            <p className="text-xs tracking-wide" style={{ color: "var(--text-secondary)" }}>
+              Chat with your documents, instantly
             </p>
           </div>
-          {uploadState.status !== "success" && (
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{ background: "var(--accent)", color: "white" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-            >
-              <Paperclip size={14} />
-              Upload PDF
-            </button>
-          )}
+
+          {/* PDF thumbnail — right side */}
+          <div className="w-48 flex-shrink-0 flex justify-end">
+            {uploadState.status === "success" && (
+              <div
+                className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+              >
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(99,102,241,0.12)" }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <path d="M4 3h8l4 4v10a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" fill="none" stroke="var(--accent)" strokeWidth="1.5" />
+                    <path d="M12 3v4h4" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 10h6M7 13h4" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <span
+                  className="text-xs font-medium truncate max-w-24"
+                  style={{ color: "var(--text-primary)" }}
+                >
+                  {uploadState.fileName}
+                </span>
+                <button
+                  onClick={() => setShowConfirm(true)}
+                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-colors"
+                  style={{ color: "var(--text-secondary)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                  title="Remove document"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            )}
+          </div>
         </header>
 
         {/* Messages */}
@@ -226,19 +324,14 @@ export default function Home() {
                   )}
                 </div>
               ) : (
-                <div className="text-center max-w-sm">
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                    style={{ background: "rgba(99,102,241,0.12)" }}
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-sm" style={{ color: "var(--text-secondary)" }}>Type your first question below</span>
+                  <svg
+                    width="36" height="48" viewBox="0 0 20 28" fill="none"
+                    style={{ animation: "bounce 1.4s ease-in-out infinite" }}
                   >
-                    <Bot size={26} style={{ color: "var(--accent)" }} />
-                  </div>
-                  <p className="font-semibold text-base" style={{ color: "var(--text-primary)" }}>
-                    Ready to answer questions
-                  </p>
-                  <p className="text-sm mt-2" style={{ color: "var(--text-secondary)" }}>
-                    Ask anything about the uploaded PDF.
-                  </p>
+                    <path d="M10 2v20M3 16l7 8 7-8" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </div>
               )}
             </div>
@@ -246,7 +339,7 @@ export default function Home() {
             messages.map((msg, i) => (
               <div
                 key={i}
-                className={`flex gap-3 max-w-3xl ${msg.role === "user" ? "ml-auto flex-row-reverse" : ""}`}
+                className="flex gap-3 max-w-3xl"
               >
                 {/* Avatar */}
                 <div
@@ -269,8 +362,7 @@ export default function Home() {
                     background: msg.role === "user" ? "var(--user-bubble)" : "var(--assistant-bubble)",
                     color: "var(--text-primary)",
                     border: `1px solid ${msg.role === "user" ? "rgba(99,102,241,0.3)" : "var(--border)"}`,
-                    borderBottomRightRadius: msg.role === "user" ? "4px" : undefined,
-                    borderBottomLeftRadius: msg.role === "assistant" ? "4px" : undefined,
+                    borderBottomLeftRadius: "4px",
                   }}
                 >
                   {msg.content}

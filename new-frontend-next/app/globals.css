@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f0f13;
-  --surface: #16161f;
-  --surface-2: #1e1e2a;
-  --border: #2a2a3a;
+  --background: #ffffff;
+  --surface: #f8f9fa;
+  --surface-2: #eef0f4;
+  --border: #d1d5db;
   --accent: #6366f1;
   --accent-hover: #4f46e5;
-  --text-primary: #f0f0f8;
-  --text-secondary: #8888a8;
-  --user-bubble: #1e1b4b;
-  --assistant-bubble: #1a1a26;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --user-bubble: #ede9fe;
+  --assistant-bubble: #f3f4f6;
 }
 
 * {
@@ -42,4 +42,16 @@ body {
 
 textarea::placeholder {
   color: var(--text-secondary);
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(6px); opacity: 0.6; }
+}
+
+@keyframes toast-pop {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  10%  { transform: translateX(0);     opacity: 1; }
+  82%  { transform: translateX(0);     opacity: 1; }
+  100% { transform: translateX(0);     opacity: 0; }
 }

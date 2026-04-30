@@ -88,9 +88,12 @@ make sure the current dir in terminal is the root of the project -->
 python -m streamlit run frontend/Main.py 
 
 ```
-5️⃣ Run Frontend (Next.js)
+5️⃣ Run Frontend (Next.js) - 
 
- cd frontend-next && npm run dev 
+```
+ cd new-frontend-next && npm run dev 
+ Open browser:   http://localhost:3001
+```
 
 
 ## Features
