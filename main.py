@@ -1,14 +1,15 @@
+import os, sys
+print("Python:", sys.version)
+print("CWD:", os.getcwd())
+print("PYTHONPATH:", os.environ.get("PYTHONPATH"))
+print("backend exists:", os.path.exists("backend"))
+print("config exists:", os.path.exists("backend/config/config.py"))
+print("sys.path:", sys.path)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.controller.pdf_controller import router as pdf_router
 from backend.controller.rag_controller import router as rag_router
-
-#remove
-import os, sys
-print("CWD:", os.getcwd())
-print("SYS PATH:", sys.path)
-print("FILES:", os.listdir("."))
-#remove
 
 app = FastAPI()
 
