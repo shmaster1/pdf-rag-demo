@@ -7,12 +7,18 @@ from backend.services.rag_pipeline_service import RAGPipelineService
 router = APIRouter(prefix="/rag", tags=["RAG"])
 
 config = Config()
-rag_service = RAGPipelineService(config=config)
+_rag_service = None
+
+def get_rag_service():
+    global _rag_service
+    if _rag_service is None:
+        _rag_service = RAGPipelineService(config=config)
+    return _rag_service
 
 @router.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest):
     try:
-        answer_text = rag_service.ask_question(request.question)
+        answer_text = get_rag_service().ask_question(request.question)
         return {"answer": answer_text, "sources": []}
     except Exception as e:
         # Log the full exception for debugging
