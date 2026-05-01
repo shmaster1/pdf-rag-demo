@@ -6,8 +6,6 @@ from backend.services.rag_pipeline_service import RAGPipelineService
 
 router = APIRouter(prefix="/pdf_converter", tags=["PDF_CONVERTER"])
 config = Config()
-pdf_service = RAGPipelineService(config=config)
-
 
 
 @router.post("/", response_model=PDFResponse)
