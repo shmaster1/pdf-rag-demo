@@ -1,6 +1,5 @@
 from huggingface_hub import InferenceClient
 from backend.config.config import Config
-from sentence_transformers import SentenceTransformer
 import weaviate
 
 
@@ -8,7 +7,6 @@ class RAGPipelineService:
 
     def __init__(self, config: Config):
         self.config = config
-        self.transformer = SentenceTransformer("all-MiniLM-L6-v2")
         self.vector_client= weaviate.Client(url=self.config.WEAVIATE_BASE_URL, startup_period=5, timeout_config=(5, 60)) # uses the old v3 of weaviate package
         self.huggingface_client = InferenceClient(token=self.config.HUGGING_FACE_KEY)
 
@@ -27,7 +25,11 @@ class RAGPipelineService:
 
     # Convert a user question to a vector for similarity search
     def embed_query(self, text: str):
-        return self.transformer.encode(text).tolist()
+        result = self.huggingface_client.feature_extraction(
+            text,
+            model="sentence-transformers/all-MiniLM-L6-v2"
+        )
+        return result[0].tolist()
 
     # Retrieve the top K most similar document chunks from Weaviate
     def retrieve_chunks(self, question: str, k: int = 3):
