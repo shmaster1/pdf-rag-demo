@@ -6,6 +6,11 @@ import weaviate
 class RAGPipelineService:
 
     def __init__(self, config: Config):
+        print("######################")
+        print("WEAVIATE_URL:", self.config.WEAVIATE_BASE_URL)
+        print("WEAVIATE_KEY:", self.config.WEAVIATE_API_KEY[:5] if self.config.WEAVIATE_API_KEY else "EMPTY")
+        print("######################")
+
         self.config = config
         self.vector_client= weaviate.Client(url=self.config.WEAVIATE_BASE_URL, startup_period=5, timeout_config=(5, 60)) # uses the old v3 of weaviate package
         self.huggingface_client = InferenceClient(token=self.config.HUGGING_FACE_KEY)
