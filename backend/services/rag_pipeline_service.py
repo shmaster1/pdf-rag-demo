@@ -2,6 +2,7 @@ from weaviate.classes.init import Auth
 from huggingface_hub import InferenceClient
 from backend.config.config import Config
 import weaviate
+import numpy as np
 
 
 class RAGPipelineService:
@@ -32,7 +33,8 @@ class RAGPipelineService:
             text,
             model="sentence-transformers/all-MiniLM-L6-v2"
         )
-        return result[0].tolist()
+        arr = np.array(result).flatten()
+        return arr.tolist()
 
     # Retrieve the top K most similar document chunks from Weaviate
     def retrieve_chunks(self, question: str, k: int = 3):
