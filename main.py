@@ -8,7 +8,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3001"],
-    allow_methods=["*"],
+    allow_methods=["https://pdf-rag-demo.vercel.app"],
     allow_headers=["*"],
 )
 
