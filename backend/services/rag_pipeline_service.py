@@ -1,3 +1,4 @@
+from weaviate.classes.init import Auth
 from huggingface_hub import InferenceClient
 from backend.config.config import Config
 import weaviate
@@ -7,7 +8,10 @@ class RAGPipelineService:
 
     def __init__(self, config: Config):
         self.config = config
-        self.vector_client= weaviate.Client(url=self.config.WEAVIATE_BASE_URL, startup_period=5, timeout_config=(5, 60)) # uses the old v3 of weaviate package
+        self.vector_client = weaviate.connect_to_weaviate_cloud(
+            cluster_url=self.config.WEAVIATE_BASE_URL,
+            auth_credentials=Auth.api_key(self.config.WEAVIATE_API_KEY),
+        )
         self.huggingface_client = InferenceClient(token=self.config.HUGGING_FACE_KEY)
 
 
