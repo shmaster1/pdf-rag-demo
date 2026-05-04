@@ -51,7 +51,7 @@ export default function Home() {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`${API_BASE}/pdf_converter`, {
+      const res = await fetch(`${API_BASE}/pdf_converter/`, {
         method: "POST",
         body: formData,
       });
