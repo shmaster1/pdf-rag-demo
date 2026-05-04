@@ -14,16 +14,15 @@ class RAGPipelineService:
         )
         self.huggingface_client = InferenceClient(token=self.config.HUGGING_FACE_KEY)
 
-
     def index_chunks_in_vector_db(self, chunks: list[str], file_name: str):
         if not chunks:
             return
 
-        with self.vector_client.batch as batch:
+        collection = self.vector_client.collections.get("DocumentChunk")
+        with collection.batch.dynamic() as batch:
             for chunk in chunks:
-                batch.add_data_object(
-                    data_object={"content": chunk, "source_file": file_name},
-                    class_name="DocumentChunk",
+                batch.add_object(
+                    properties={"content": chunk, "source_file": file_name},
                     vector=self.embed_query(chunk)
                 )
 
@@ -38,16 +37,15 @@ class RAGPipelineService:
     # Retrieve the top K most similar document chunks from Weaviate
     def retrieve_chunks(self, question: str, k: int = 3):
         query_vector = self.embed_query(question)
-        result = (
-            self.vector_client.query
-            .get("DocumentChunk", ["content"])
-            .with_near_vector({"vector": query_vector})
-            .with_limit(k)
-            .do()
+        collection = self.vector_client.collections.get("DocumentChunk")
+        result = collection.query.near_vector(
+            near_vector=query_vector,
+            limit=k,
+            return_properties=["content"]
         )
-        if "data" not in result or not result["data"]["Get"]["DocumentChunk"]:
+        if not result.objects:
             return []
-        return [item["content"] for item in result["data"]["Get"]["DocumentChunk"]]
+        return [obj.properties["content"] for obj in result.objects]
 
 
     def build_context(self, question: str):
