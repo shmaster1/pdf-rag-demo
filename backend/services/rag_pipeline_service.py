@@ -1,5 +1,4 @@
 from weaviate.classes.init import Auth
-from weaviate.classes.query import Filter
 from huggingface_hub import InferenceClient
 from backend.config.config import Config
 import weaviate
@@ -10,33 +9,45 @@ class RAGPipelineService:
 
     def __init__(self, config: Config):
         self.config = config
-        self.vector_client = weaviate.connect_to_weaviate_cloud(
-            cluster_url=self.config.WEAVIATE_BASE_URL,
-            auth_credentials=Auth.api_key(self.config.WEAVIATE_API_KEY),
-        )
+        # local dev fallback: if no API key is set, connect to local Weaviate instance
+        if self.config.WEAVIATE_API_KEY:
+            self.vector_client = weaviate.connect_to_weaviate_cloud(
+                cluster_url=self.config.WEAVIATE_BASE_URL,
+                auth_credentials=Auth.api_key(self.config.WEAVIATE_API_KEY),
+            )
+        else:
+            self.vector_client = weaviate.connect_to_local(port=8081)
         self.huggingface_client = InferenceClient(token=self.config.HUGGING_FACE_KEY)
+
+    def _ensure_collection(self):
+        if not self.vector_client.collections.exists("DocumentChunk"):
+            self.vector_client.collections.create(name="DocumentChunk")
 
     def clear_collection(self):
         try:
-            collection = self.vector_client.collections.get("DocumentChunk")
-            collection.data.delete_many(
-                where=Filter.by_property("source_file").is_none(False)
-            )
+            if self.vector_client.collections.exists("DocumentChunk"):
+                self.vector_client.collections.delete("DocumentChunk")
             return {"status": "cleared"}
         except Exception as e:
             return {"status": "error", "detail": str(e)}
+        finally:
+            self.vector_client.close()
 
     def index_chunks_in_vector_db(self, chunks: list[str], file_name: str):
         if not chunks:
             return
 
-        collection = self.vector_client.collections.get("DocumentChunk")
-        with collection.batch.dynamic() as batch:
-            for chunk in chunks:
-                batch.add_object(
-                    properties={"content": chunk, "source_file": file_name},
-                    vector=self.embed_query(chunk)
-                )
+        try:
+            self._ensure_collection()
+            collection = self.vector_client.collections.get("DocumentChunk")
+            with collection.batch.dynamic() as batch:
+                for chunk in chunks:
+                    batch.add_object(
+                        properties={"content": chunk, "source_file": file_name},
+                        vector=self.embed_query(chunk)
+                    )
+        finally:
+            self.vector_client.close()
 
     # Convert a user question to a vector for similarity search
     def embed_query(self, text: str):
@@ -94,5 +105,8 @@ class RAGPipelineService:
 
     # Orchestrate the full RAG pipeline: embed → retrieve → prompt → generate
     def ask_question(self, question: str):
-        prompt = self.build_prompt(question)
-        return self.generate_answer(prompt)
+        try:
+            prompt = self.build_prompt(question)
+            return self.generate_answer(prompt)
+        finally:
+            self.vector_client.close()
