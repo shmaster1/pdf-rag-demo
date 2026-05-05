@@ -1,6 +1,8 @@
+from starlette import status
+
 from backend.config.config import Config
 from backend.models.pdf_response import PDFResponse
-from fastapi import UploadFile, File, BackgroundTasks, APIRouter
+from fastapi import UploadFile, File, BackgroundTasks, APIRouter, HTTPException
 from backend.services.pdf_converter_service import PDFConverterService
 from backend.services.rag_pipeline_service import RAGPipelineService
 
@@ -19,3 +21,9 @@ def index_uploaded_pdf(background_tasks: BackgroundTasks, file: UploadFile= File
         # Step 3: Return PDFResponse immediately
     return pdf_res
 
+@router.delete("/", status_code=status.HTTP_200_OK)
+def clear_pdf_data():
+    cleaner = RAGPipelineService(config)
+    if cleaner is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return cleaner.clear_collection()
