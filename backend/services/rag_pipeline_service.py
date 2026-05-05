@@ -105,8 +105,5 @@ class RAGPipelineService:
 
     # Orchestrate the full RAG pipeline: embed → retrieve → prompt → generate
     def ask_question(self, question: str):
-        try:
-            prompt = self.build_prompt(question)
-            return self.generate_answer(prompt)
-        finally:
-            self.vector_client.close()
+        prompt = self.build_prompt(question)
+        return self.generate_answer(prompt)
