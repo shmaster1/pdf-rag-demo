@@ -39,6 +39,14 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const clearBackend = useCallback(() => {
+    fetch(`${API_BASE}/pdf_converter/`, { method: "DELETE" });
+  }, []);
+
+  useEffect(() => {
+    clearBackend();
+  }, [clearBackend]);
+
   const uploadPDF = useCallback(async (file: File) => {
     if (!file.name.endsWith(".pdf")) {
       setUploadState({ status: "error", error: "Only PDF files are accepted." });
@@ -139,6 +147,7 @@ export default function Home() {
   };
 
   const clearDocument = () => {
+    clearBackend();
     setUploadState({ status: "idle" });
     setMessages([]);
   };

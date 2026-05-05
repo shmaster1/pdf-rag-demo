@@ -1,4 +1,5 @@
 from weaviate.classes.init import Auth
+from weaviate.classes.query import Filter
 from huggingface_hub import InferenceClient
 from backend.config.config import Config
 import weaviate
@@ -14,6 +15,16 @@ class RAGPipelineService:
             auth_credentials=Auth.api_key(self.config.WEAVIATE_API_KEY),
         )
         self.huggingface_client = InferenceClient(token=self.config.HUGGING_FACE_KEY)
+
+    def clear_collection(self):
+        try:
+            collection = self.vector_client.collections.get("DocumentChunk")
+            collection.data.delete_many(
+                where=Filter.by_property("source_file").is_none(False)
+            )
+            return {"status": "cleared"}
+        except Exception as e:
+            return {"status": "error", "detail": str(e)}
 
     def index_chunks_in_vector_db(self, chunks: list[str], file_name: str):
         if not chunks:
