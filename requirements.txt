@@ -15,7 +15,7 @@ jose
 streamlit>=1.40.0
 huggingface_hub>=0.20.0
 httpx>=0.25.0
-pypdf
+pymupdf
 protobuf>=5.29.0
 weaviate-client>=4.0.0
 numpy
