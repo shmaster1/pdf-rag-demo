@@ -9,6 +9,7 @@ class Config(BaseSettings):
     CHUNK_SIZE: int = 600
     CHUNK_OVERLAP: int = 450
     MAX_TOKENS: int = 500
+    MAX_FILE_SIZE_MB: int = 10
 
     class Config:
         env_file = ".env"

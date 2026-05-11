@@ -47,9 +47,15 @@ export default function Home() {
     clearBackend();
   }, [clearBackend]);
 
+  const MAX_FILE_SIZE_MB = 10;
+
   const uploadPDF = useCallback(async (file: File) => {
     if (!file.name.endsWith(".pdf")) {
       setUploadState({ status: "error", error: "Only PDF files are accepted." });
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setUploadState({ status: "error", error: `File exceeds the ${MAX_FILE_SIZE_MB}MB size limit.` });
       return;
     }
 
