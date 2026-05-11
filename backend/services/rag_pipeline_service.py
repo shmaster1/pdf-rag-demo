@@ -34,7 +34,11 @@ class RAGPipelineService:
             self.vector_client.close()
 
     def embed_chunks(self, chunks: list[str]) -> list[list[float]]:
-        return [self.embed_query(chunk) for chunk in chunks]
+        results = self.huggingface_client.feature_extraction(
+            chunks,
+            model="sentence-transformers/all-MiniLM-L6-v2",
+        )
+        return [np.array(r).flatten().tolist() for r in results]
 
     def insert_chunks(self, chunks: list[str], vectors: list[list[float]], file_name: str):
         self._ensure_collection()
