@@ -33,21 +33,19 @@ class RAGPipelineService:
         finally:
             self.vector_client.close()
 
-    def index_chunks_in_vector_db(self, chunks: list[str], file_name: str):
-        if not chunks:
-            return
+    def embed_chunks(self, chunks: list[str]) -> list[list[float]]:
+        return [self.embed_query(chunk) for chunk in chunks]
 
-        try:
-            self._ensure_collection()
-            collection = self.vector_client.collections.get("DocumentChunk")
-            with collection.batch.dynamic() as batch:
-                for chunk in chunks:
-                    batch.add_object(
-                        properties={"content": chunk, "source_file": file_name},
-                        vector=self.embed_query(chunk)
-                    )
-        finally:
-            self.vector_client.close()
+    def insert_chunks(self, chunks: list[str], vectors: list[list[float]], file_name: str):
+        self._ensure_collection()
+        collection = self.vector_client.collections.get("DocumentChunk")
+        with collection.batch.dynamic() as batch:
+            for chunk, vector in zip(chunks, vectors):
+                batch.add_object(
+                    properties={"content": chunk, "source_file": file_name},
+                    vector=vector,
+                )
+        self.vector_client.close()
 
     # Convert a user question to a vector for similarity search
     def embed_query(self, text: str):

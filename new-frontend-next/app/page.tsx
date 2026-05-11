@@ -19,9 +19,17 @@ interface Message {
 
 interface UploadState {
   status: "idle" | "uploading" | "success" | "error";
+  step?: "converting" | "embedding" | "indexing";
+  attempt?: number;
   fileName?: string;
   error?: string;
 }
+
+const STEP_LABELS: Record<string, string> = {
+  converting: "Converting PDF to text…",
+  embedding: "Generating embeddings…",
+  indexing: "Indexing into vector database…",
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -59,36 +67,63 @@ export default function Home() {
       return;
     }
 
-    setUploadState({ status: "uploading", fileName: file.name });
-
     const formData = new FormData();
     formData.append("file", file);
 
-    try {
-      const res = await fetch(`${API_BASE}/pdf_converter/`, {
-        method: "POST",
-        body: formData,
-      });
+    const MAX_RETRIES = 3;
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      setUploadState({ status: "uploading", step: "converting", attempt, fileName: file.name });
+
+      try {
+        const res = await fetch(`${API_BASE}/pdf_converter/`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let completed = false;
+
+        outer: while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const text = decoder.decode(value, { stream: true });
+          for (const line of text.split("\n")) {
+            if (!line.startsWith("data: ")) continue;
+            const event = JSON.parse(line.slice(6)) as { stage: string; message?: string };
+            if (event.stage === "error") {
+              setUploadState({ status: "error", fileName: file.name, error: event.message ?? "Processing failed" });
+              return;
+            }
+            if (event.stage === "done") {
+              setUploadState({ status: "success", fileName: file.name });
+              setMessages([]);
+              setShowToast(true);
+              completed = true;
+              break outer;
+            }
+            setUploadState({ status: "uploading", step: event.stage as UploadState["step"], attempt, fileName: file.name });
+          }
+        }
+
+        if (completed) return;
+        // Stream ended without a done event — connection dropped, retry
+      } catch {
+        if (attempt === MAX_RETRIES) {
+          setUploadState({ status: "error", fileName: file.name, error: "Connection lost. Please try again." });
+          return;
+        }
       }
 
-      const data = await res.json();
-      if (data.errors?.length) {
-        setUploadState({ status: "error", fileName: file.name, error: data.errors[0] });
-      } else {
-        setUploadState({ status: "success", fileName: file.name });
-        setMessages([]);
-        setShowToast(true);
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1500));
       }
-    } catch (err) {
-      setUploadState({
-        status: "error",
-        fileName: file.name,
-        error: err instanceof Error ? err.message : "Upload failed",
-      });
     }
+
+    setUploadState({ status: "error", fileName: file.name, error: "Connection lost after 3 attempts." });
   }, []);
 
   const handleFileDrop = useCallback(
@@ -163,7 +198,7 @@ export default function Home() {
       {/* Toast */}
       {showConfirm && (
         <div
-          className="fixed top-4 left-1/2 z-50 flex items-center gap-4 px-5 py-4 rounded-2xl shadow-xl text-sm"
+          className="fixed top-4 left-1/2 z-50 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 rounded-2xl shadow-xl text-sm w-[calc(100%-2rem)] sm:w-auto"
           style={{
             transform: "translateX(-50%)",
             background: "#fff",
@@ -175,7 +210,7 @@ export default function Home() {
             <p className="font-semibold" style={{ color: "var(--text-primary)" }}>Remove this document?</p>
             <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>All chat history will be permanently gone.</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-auto">
             <button
               onClick={() => setShowConfirm(false)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -219,11 +254,11 @@ export default function Home() {
       <main className="flex flex-1 flex-col min-w-0">
         {/* Chat header */}
         <header
-          className="flex items-center justify-between px-6 py-5 border-b flex-shrink-0"
+          className="flex items-center justify-between px-3 sm:px-6 py-4 sm:py-5 border-b flex-shrink-0"
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
         >
           {/* Spacer (balances the right side) */}
-          <div className="w-48 flex-shrink-0" />
+          <div className="w-8 sm:w-48 flex-shrink-0" />
 
           {/* Centered logo */}
           <div className="flex flex-col items-center gap-1">
@@ -238,24 +273,24 @@ export default function Home() {
                   <path d="M7 10h6M7 13h4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight" style={{ color: "var(--text-primary)" }}>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight" style={{ color: "var(--text-primary)" }}>
                 sha<span style={{ color: "var(--accent)" }}>pdf</span>
               </h1>
             </div>
-            <p className="text-xs tracking-wide" style={{ color: "var(--text-secondary)" }}>
+            <p className="hidden sm:block text-xs tracking-wide" style={{ color: "var(--text-secondary)" }}>
               Chat with your documents, instantly
             </p>
           </div>
 
           {/* PDF thumbnail — right side */}
-          <div className="w-48 flex-shrink-0 flex justify-end">
+          <div className="w-8 sm:w-48 flex-shrink-0 flex justify-end">
             {uploadState.status === "success" && (
               <div
-                className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-xl"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
               >
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: "rgba(99,102,241,0.12)" }}
                 >
                   <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
@@ -265,7 +300,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <span
-                  className="text-xs font-medium truncate max-w-24"
+                  className="hidden sm:block text-xs font-medium truncate max-w-24"
                   style={{ color: "var(--text-primary)" }}
                 >
                   {uploadState.fileName}
@@ -288,7 +323,7 @@ export default function Home() {
         </header>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 flex flex-col gap-4">
           {messages.length === 0 ? (
             <div className="flex flex-1 items-center justify-center">
               {uploadState.status !== "success" ? (
@@ -297,7 +332,7 @@ export default function Home() {
                   onDragLeave={() => setIsDragging(false)}
                   onDrop={handleFileDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center gap-4 rounded-2xl p-12 cursor-pointer transition-all max-w-sm w-full"
+                  className="flex flex-col items-center gap-4 rounded-2xl p-8 sm:p-12 cursor-pointer transition-all max-w-sm w-full"
                   style={{
                     border: `2px dashed ${isDragging ? "var(--accent)" : "var(--border)"}`,
                     background: isDragging ? "rgba(99,102,241,0.06)" : "transparent",
@@ -306,9 +341,16 @@ export default function Home() {
                   {uploadState.status === "uploading" ? (
                     <>
                       <Loader2 size={32} className="animate-spin" style={{ color: "var(--accent)" }} />
-                      <p className="text-sm text-center" style={{ color: "var(--text-secondary)" }}>
-                        Processing <span className="font-medium" style={{ color: "var(--text-primary)" }}>{uploadState.fileName}</span>…
-                      </p>
+                      <div className="text-center">
+                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                          {STEP_LABELS[uploadState.step ?? "converting"]}
+                        </p>
+                        {uploadState.attempt && uploadState.attempt > 1 && (
+                          <p className="text-xs mt-1" style={{ color: "var(--accent)" }}>
+                            Retrying… (attempt {uploadState.attempt} of 3)
+                          </p>
+                        )}
+                      </div>
                     </>
                   ) : (
                     <>
@@ -354,11 +396,11 @@ export default function Home() {
             messages.map((msg, i) => (
               <div
                 key={i}
-                className="flex gap-3 max-w-3xl"
+                className="flex gap-2 sm:gap-3 w-full sm:max-w-3xl"
               >
                 {/* Avatar */}
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                   style={{
                     background: msg.role === "user" ? "rgba(99,102,241,0.25)" : "var(--surface-2)",
                   }}
@@ -372,7 +414,7 @@ export default function Home() {
 
                 {/* Bubble */}
                 <div
-                  className="rounded-2xl px-4 py-3 text-sm leading-relaxed max-w-lg"
+                  className="rounded-2xl px-3 sm:px-4 py-3 text-sm leading-relaxed flex-1 sm:max-w-lg"
                   style={{
                     background: msg.role === "user" ? "var(--user-bubble)" : "var(--assistant-bubble)",
                     color: "var(--text-primary)",
@@ -387,9 +429,9 @@ export default function Home() {
           )}
 
           {isQuerying && (
-            <div className="flex gap-3 max-w-3xl">
+            <div className="flex gap-2 sm:gap-3 w-full sm:max-w-3xl">
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
                 style={{ background: "var(--surface-2)" }}
               >
                 <Bot size={14} style={{ color: "var(--text-secondary)" }} />
@@ -414,7 +456,7 @@ export default function Home() {
 
         {/* Input bar */}
         <div
-          className="px-6 py-4 border-t flex-shrink-0"
+          className="px-3 sm:px-6 py-4 border-t flex-shrink-0"
           style={{ background: "var(--surface)", borderColor: "var(--border)" }}
         >
           <div
