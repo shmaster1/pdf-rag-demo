@@ -22,11 +22,15 @@ def index_uploaded_pdf(file: UploadFile = File(...)) -> StreamingResponse:
             detail=f"File exceeds the {config.MAX_FILE_SIZE_MB}MB size limit.",
         )
 
+    # Read eagerly — UploadFile is closed by Starlette before the generator runs
+    file_bytes = file.file.read()
+    file_name = file.filename
+
     def generate():
         converter = PDFConverterService(config)
 
         yield f"data: {json.dumps({'stage': 'converting'})}\n\n"
-        pdf_res = converter.convert_pdf_to_text(file)
+        pdf_res = converter.convert_pdf_to_text(file_bytes, file_name)
 
         if pdf_res.errors:
             yield f"data: {json.dumps({'stage': 'error', 'message': pdf_res.errors[0]})}\n\n"
@@ -38,7 +42,7 @@ def index_uploaded_pdf(file: UploadFile = File(...)) -> StreamingResponse:
         vectors = rag_service.embed_chunks(pdf_res.chunks)
 
         yield f"data: {json.dumps({'stage': 'indexing'})}\n\n"
-        rag_service.insert_chunks(pdf_res.chunks, vectors, file.filename)
+        rag_service.insert_chunks(pdf_res.chunks, vectors, file_name)
 
         yield f"data: {json.dumps({'stage': 'done'})}\n\n"
 
