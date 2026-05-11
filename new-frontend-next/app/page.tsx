@@ -119,7 +119,7 @@ export default function Home() {
       }
 
       if (attempt < MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 8000));
       }
     }
 
