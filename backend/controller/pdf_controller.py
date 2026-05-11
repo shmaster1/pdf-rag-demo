@@ -12,6 +12,14 @@ config = Config()
 
 @router.post("/", response_model=PDFResponse)
 def index_uploaded_pdf(background_tasks: BackgroundTasks, file: UploadFile= File(...)) -> PDFResponse:
+    file.file.seek(0, 2)
+    size_bytes = file.file.tell()
+    file.file.seek(0)
+    if size_bytes > config.MAX_FILE_SIZE_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File exceeds the {config.MAX_FILE_SIZE_MB}MB size limit.",
+        )
     converter = PDFConverterService(config)
     pdf_res = converter.convert_pdf_to_text(file)
 
