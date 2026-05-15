@@ -34,6 +34,7 @@ const STEP_LABELS: Record<string, string> = {
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [lastContexts, setLastContexts] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [isQuerying, setIsQuerying] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" });
@@ -41,8 +42,6 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showEvalModal, setShowEvalModal] = useState(false);
-  const [evalContexts, setEvalContexts] = useState("");
-  const [evalGroundTruth, setEvalGroundTruth] = useState("");
   const [evalScores, setEvalScores] = useState<Record<string, number> | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
@@ -166,6 +165,7 @@ export default function Home() {
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
+      setLastContexts(data.contexts ?? []);
       setMessages((prev) => [...prev, { role: "assistant", content: data.answer }]);
     } catch (err) {
       setMessages((prev) => [
@@ -210,17 +210,14 @@ export default function Home() {
   }, [messages]);
 
   const openEvalModal = () => {
-    setEvalContexts("");
-    setEvalGroundTruth("");
     setEvalScores(null);
     setEvalError(null);
     setShowEvalModal(true);
+    runEvaluation();
   };
 
   const runEvaluation = async () => {
-    if (!lastQA) return;
-    const contexts = evalContexts.split("\n").map((c) => c.trim()).filter(Boolean);
-    if (!contexts.length || !evalGroundTruth.trim()) return;
+    if (!lastQA || !lastContexts.length) return;
 
     setIsEvaluating(true);
     setEvalError(null);
@@ -233,8 +230,7 @@ export default function Home() {
         body: JSON.stringify({
           question: lastQA.question,
           answer: lastQA.answer,
-          contexts,
-          ground_truth: evalGroundTruth.trim(),
+          contexts: lastContexts,
         }),
       });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -553,15 +549,18 @@ export default function Home() {
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
               Enter to send · Shift+Enter for new line
             </p>
-            {lastQA && (
+            {lastQA && lastContexts.length > 0 && (
               <button
                 onClick={openEvalModal}
-                className="text-xs font-medium transition-colors"
-                style={{ color: "var(--accent)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-hover)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--accent)")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "var(--accent)", color: "#fff" }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-hover)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
               >
-                Evaluate last response →
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path d="M2 12h2v-4H2v4zm4 0h2V4H6v8zm4 0h2V7h-2v5z" fill="currentColor"/>
+                </svg>
+                Evaluate
               </button>
             )}
           </div>
@@ -576,22 +575,26 @@ export default function Home() {
         onChange={handleFileInput}
       />
 
-      {/* Evaluation Modal */}
+      {/* Evaluation Dashboard */}
       {showEvalModal && lastQA && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.45)" }}
+          style={{ background: "rgba(0,0,0,0.5)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setShowEvalModal(false); }}
         >
           <div
-            className="w-full max-w-lg rounded-2xl flex flex-col gap-4 p-6"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)", maxHeight: "90vh", overflowY: "auto" }}
+            className="w-full max-w-md rounded-2xl flex flex-col gap-6 p-6"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
+            {/* Header */}
             <div className="flex items-center justify-between">
-              <h2 className="font-bold text-base" style={{ color: "var(--text-primary)" }}>Evaluate RAG Response</h2>
+              <div>
+                <h2 className="font-bold text-base" style={{ color: "var(--text-primary)" }}>RAG Quality Dashboard</h2>
+                <p className="text-xs mt-0.5 truncate max-w-xs" style={{ color: "var(--text-secondary)" }}>"{lastQA.question}"</p>
+              </div>
               <button
                 onClick={() => setShowEvalModal(false)}
-                className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors"
                 style={{ color: "var(--text-secondary)", background: "var(--surface-2)" }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--border)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface-2)")}
@@ -602,95 +605,37 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Read-only Q&A */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Question</label>
-              <div className="rounded-xl px-3 py-2 text-sm" style={{ background: "var(--surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
-                {lastQA.question}
+            {/* Metric cards */}
+            {isEvaluating ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <Loader2 size={28} className="animate-spin" style={{ color: "var(--accent)" }} />
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Evaluating response…</p>
               </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Answer</label>
-              <div className="rounded-xl px-3 py-2 text-sm max-h-24 overflow-y-auto" style={{ background: "var(--surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)" }}>
-                {lastQA.answer}
-              </div>
-            </div>
-
-            {/* Contexts */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>
-                Contexts <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}>(one per line)</span>
-              </label>
-              <textarea
-                value={evalContexts}
-                onChange={(e) => setEvalContexts(e.target.value)}
-                rows={4}
-                placeholder="Paste each retrieved context chunk on a new line…"
-                className="rounded-xl px-3 py-2 text-sm resize-none outline-none"
-                style={{ background: "var(--surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              />
-            </div>
-
-            {/* Ground Truth */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Ground Truth</label>
-              <input
-                type="text"
-                value={evalGroundTruth}
-                onChange={(e) => setEvalGroundTruth(e.target.value)}
-                placeholder="The correct reference answer…"
-                className="rounded-xl px-3 py-2 text-sm outline-none"
-                style={{ background: "var(--surface-2)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              />
-            </div>
-
-            {/* Run button */}
-            <button
-              onClick={runEvaluation}
-              disabled={isEvaluating || !evalContexts.trim() || !evalGroundTruth.trim()}
-              className="w-full rounded-xl py-2.5 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-              style={{
-                background: isEvaluating || !evalContexts.trim() || !evalGroundTruth.trim() ? "var(--border)" : "var(--accent)",
-                color: isEvaluating || !evalContexts.trim() || !evalGroundTruth.trim() ? "var(--text-secondary)" : "#fff",
-                cursor: isEvaluating || !evalContexts.trim() || !evalGroundTruth.trim() ? "not-allowed" : "pointer",
-              }}
-            >
-              {isEvaluating && <Loader2 size={14} className="animate-spin" />}
-              {isEvaluating ? "Evaluating…" : "Run Evaluation"}
-            </button>
-
-            {evalError && (
-              <div className="rounded-lg px-4 py-2 flex items-center gap-2 text-xs" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                <AlertCircle size={13} className="text-red-400 flex-shrink-0" />
+            ) : evalError ? (
+              <div className="rounded-xl px-4 py-3 flex items-center gap-2 text-sm" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <AlertCircle size={15} className="text-red-400 flex-shrink-0" />
                 <span className="text-red-400">{evalError}</span>
               </div>
-            )}
-
-            {/* Scores */}
-            {evalScores && (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Results</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {([
-                    ["answer_correctness", "Correctness"],
-                    ["answer_relevancy", "Relevancy"],
-                    ["faithfulness", "Faithfulness"],
-                    ["context_recall", "Recall"],
-                    ["context_precision", "Precision"],
-                  ] as [string, string][]).map(([key, label]) => {
-                    const val = evalScores[key];
-                    const pct = val != null && !isNaN(val) ? (val * 100).toFixed(1) : "N/A";
-                    const color = val == null || isNaN(val) ? "var(--text-secondary)" : val >= 0.7 ? "#16a34a" : val >= 0.4 ? "#d97706" : "#dc2626";
-                    return (
-                      <div key={key} className="rounded-xl px-3 py-3 flex flex-col gap-1" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
-                        <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</span>
-                        <span className="text-lg font-bold" style={{ color }}>{pct}{pct !== "N/A" ? "%" : ""}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+            ) : evalScores ? (
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  ["answer_relevancy", "Relevancy", "How well the answer addresses the question"],
+                  ["faithfulness", "Faithfulness", "How grounded the answer is in the retrieved context"],
+                  ["context_precision", "Precision", "How relevant the retrieved chunks are"],
+                ] as [string, string, string][]).map(([key, label, description]) => {
+                  const val = evalScores[key];
+                  const pct = val != null && !isNaN(val) ? Math.round(val * 100) : null;
+                  const color = pct == null ? "var(--text-secondary)" : pct >= 70 ? "#16a34a" : pct >= 40 ? "#d97706" : "#dc2626";
+                  const bg = pct == null ? "var(--surface-2)" : pct >= 70 ? "rgba(22,163,74,0.08)" : pct >= 40 ? "rgba(217,119,6,0.08)" : "rgba(220,38,38,0.08)";
+                  return (
+                    <div key={key} className="rounded-2xl p-4 flex flex-col gap-2" style={{ background: bg, border: `1px solid ${color}30` }} title={description}>
+                      <span className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>{label}</span>
+                      <span className="text-3xl font-extrabold" style={{ color }}>{pct != null ? `${pct}%` : "—"}</span>
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}

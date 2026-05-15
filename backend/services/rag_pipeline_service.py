@@ -74,23 +74,19 @@ class RAGPipelineService:
         return [obj.properties["content"] for obj in result.objects]
 
 
-    def build_context(self, question: str):
-        retrieved_chunks = self.retrieve_chunks(question, self.config.TOP_K_CHUNKS)
-        if not retrieved_chunks:
-            return ""
-        return "\n\n".join(retrieved_chunks)
+    def build_context(self, question: str) -> tuple[str, list[str]]:
+        chunks = self.retrieve_chunks(question, self.config.TOP_K_CHUNKS)
+        if not chunks:
+            return "", []
+        return "\n\n".join(chunks), chunks
 
+    def build_prompt(self, question: str) -> tuple[str, list[str]]:
+        context, chunks = self.build_context(question)
+        return f"Context: {context}, Question: {question}", chunks
 
-    # Build the LLM prompt by combining the retrieved chunks and user question
-    def build_prompt(self, question: str):
-        context = self.build_context(question)
-        return f"Context: {context}, Question: {question}"
-
-
-    # Send the prompt to the LLM and return its generated answer
-    def generate_answer(self, prompt: str):
+    def generate_answer(self, prompt: str) -> str:
         completion = self.huggingface_client.chat.completions.create(
-            model="Qwen/Qwen2.5-7B-Instruct", # todo: move to config
+            model="Qwen/Qwen2.5-7B-Instruct",
             messages=[
                 {
                     "role": "system",
@@ -102,10 +98,9 @@ class RAGPipelineService:
                 }
             ], max_tokens=self.config.MAX_TOKENS
         )
-
         return completion.choices[0].message["content"]
 
-    # Orchestrate the full RAG pipeline: embed → retrieve → prompt → generate
-    def ask_question(self, question: str):
-        prompt = self.build_prompt(question)
-        return self.generate_answer(prompt)
+    def ask_question(self, question: str) -> dict:
+        prompt, chunks = self.build_prompt(question)
+        answer = self.generate_answer(prompt)
+        return {"answer": answer, "contexts": chunks}

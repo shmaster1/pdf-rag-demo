@@ -18,8 +18,8 @@ def get_rag_service():
 @router.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest):
     try:
-        answer_text = get_rag_service().ask_question(request.question)
-        return {"answer": answer_text, "sources": []}
+        result = get_rag_service().ask_question(request.question)
+        return {"answer": result["answer"], "contexts": result["contexts"], "sources": []}
     except Exception as e:
         # Log the full exception for debugging
         import traceback
