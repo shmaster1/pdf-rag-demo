@@ -10,5 +10,5 @@ evaluation_service = EvaluationService()
 
 @router.post("/")
 def get_evaluations_scores(inputs: EvaluationRequest) -> EvaluationResult:
-    result = evaluation_service.evaluate_rag(inputs.question, inputs.answer, inputs.contexts, inputs.ground_truth)
+    result = evaluation_service.evaluate_rag(inputs.question, inputs.answer, inputs.contexts)
     return EvaluationResult(**result)
