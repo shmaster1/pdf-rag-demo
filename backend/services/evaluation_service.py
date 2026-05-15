@@ -8,13 +8,16 @@ class EvaluationService:
         import ragas  # noqa: F401
         from ragas.llms import LangchainLLMWrapper
         from ragas.embeddings import LangchainEmbeddingsWrapper
-        from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
+        from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEndpointEmbeddings
 
         self.config = Config()
         self.hf_llm = HuggingFaceEndpoint(model="Qwen/Qwen2.5-7B-Instruct", huggingfacehub_api_token=self.config.HUGGING_FACE_KEY)
         self.langchain_llm_wrapper = LangchainLLMWrapper(self.hf_llm)
         self.hf_embeddings = LangchainEmbeddingsWrapper(
-            HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+            HuggingFaceEndpointEmbeddings(
+                model="sentence-transformers/all-MiniLM-L6-v2",
+                huggingfacehub_api_token=self.config.HUGGING_FACE_KEY,
+            )
         )
 
     def evaluate_rag(self, question: str, answer: str, contexts: List[str]):
@@ -22,6 +25,7 @@ class EvaluationService:
         return self._run_evaluate(shaped_dataset)
 
     def _build_dataset(self, question, answer, contexts):
+        from datasets import Dataset
         shaped_dict = {
             "question": [question],
             "answer": [answer],
@@ -29,7 +33,9 @@ class EvaluationService:
         }
         return Dataset.from_dict(shaped_dict)
 
-    def _run_evaluate(self, dataset: Dataset):
+    def _run_evaluate(self, dataset):
+        import ragas
+        from ragas.metrics import answer_relevancy, faithfulness
         metrics = [answer_relevancy, faithfulness]
         for metric in metrics:
             metric.llm = self.langchain_llm_wrapper
