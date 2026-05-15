@@ -1,7 +1,7 @@
 from typing import List
 import ragas
 from datasets  import Dataset
-from ragas.metrics import answer_relevancy, faithfulness, context_precision
+from ragas.metrics import answer_relevancy, faithfulness
 from ragas.llms import LangchainLLMWrapper
 from langchain_huggingface import HuggingFaceEndpoint
 from backend.config.config import Config
@@ -27,7 +27,7 @@ class EvaluationService:
         return Dataset.from_dict(shaped_dict)
 
     def _run_evaluate(self, dataset: Dataset):
-        metrics = [answer_relevancy, faithfulness, context_precision]
+        metrics = [answer_relevancy, faithfulness]
         for metric in metrics:
             metric.llm = self.langchain_llm_wrapper
         result = ragas.evaluate(dataset, metrics)
