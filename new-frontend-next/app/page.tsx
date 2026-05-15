@@ -549,7 +549,9 @@ export default function Home() {
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
               Enter to send · Shift+Enter for new line
             </p>
-            {lastQA && lastContexts.length > 0 && (
+            {/* TODO: Evaluate button hidden — ragas exceeds Render free tier 512MB RAM limit.
+                Uncomment once upgraded to a paid plan (1GB+). All evaluation logic is intact. */}
+            {/* {lastQA && lastContexts.length > 0 && (
               <button
                 onClick={openEvalModal}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -562,7 +564,7 @@ export default function Home() {
                 </svg>
                 Evaluate
               </button>
-            )}
+            )} */}
           </div>
         </div>
       </main>
