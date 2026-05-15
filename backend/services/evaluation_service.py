@@ -3,7 +3,8 @@ import ragas
 from datasets  import Dataset
 from ragas.metrics import answer_relevancy, faithfulness
 from ragas.llms import LangchainLLMWrapper
-from langchain_huggingface import HuggingFaceEndpoint
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 from backend.config.config import Config
 
 
@@ -13,6 +14,9 @@ class EvaluationService:
         self.config = Config()
         self.hf_llm = HuggingFaceEndpoint(model="Qwen/Qwen2.5-7B-Instruct", huggingfacehub_api_token=self.config.HUGGING_FACE_KEY)
         self.langchain_llm_wrapper = LangchainLLMWrapper(self.hf_llm)
+        self.hf_embeddings = LangchainEmbeddingsWrapper(
+            HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        )
 
     def evaluate_rag(self, question: str, answer: str, contexts: List[str]):
         shaped_dataset = self._build_dataset(question, answer, contexts)
@@ -30,6 +34,8 @@ class EvaluationService:
         metrics = [answer_relevancy, faithfulness]
         for metric in metrics:
             metric.llm = self.langchain_llm_wrapper
+            if hasattr(metric, "embeddings"):
+                metric.embeddings = self.hf_embeddings
         result = ragas.evaluate(dataset, metrics)
         return result.to_pandas().iloc[0].to_dict()
 
