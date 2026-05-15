@@ -19,3 +19,7 @@ pymupdf
 protobuf>=5.29.0
 weaviate-client>=4.0.0
 numpy
+ragas>=0.2.0
+langchain>=0.3.0
+langchain-huggingface>=0.1.0
+sentence-transformers>=3.0.0

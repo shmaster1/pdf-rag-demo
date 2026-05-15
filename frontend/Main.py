@@ -4,6 +4,7 @@ from backend.config.config import Config
 
 PDF_ENDPOINT = "http://localhost:8001/pdf_converter"
 RAG_CHAT_ENDPOINT = "http://localhost:8001/rag/query"
+EVALUATION_ENDPOINT = "http://localhost:8001/evaluation/"
 
 config = Config()
 
