@@ -617,11 +617,10 @@ export default function Home() {
                 <span className="text-red-400">{evalError}</span>
               </div>
             ) : evalScores ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {([
                   ["answer_relevancy", "Relevancy", "How well the answer addresses the question"],
                   ["faithfulness", "Faithfulness", "How grounded the answer is in the retrieved context"],
-                  ["context_precision", "Precision", "How relevant the retrieved chunks are"],
                 ] as [string, string, string][]).map(([key, label, description]) => {
                   const val = evalScores[key];
                   const pct = val != null && !isNaN(val) ? Math.round(val * 100) : null;
