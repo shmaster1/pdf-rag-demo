@@ -57,9 +57,6 @@ export default function Home() {
     fetch(`${API_BASE}/pdf_converter/`, { method: "DELETE" });
   }, []);
 
-  useEffect(() => {
-    clearBackend();
-  }, [clearBackend]);
 
   const MAX_FILE_SIZE_MB = 10;
 
